@@ -1,15 +1,7 @@
-import bpy, os, math, json
-from bpy_extras.io_utils import ImportHelper 
+import bpy, bpy_extras, math, json, os
 from . import exceptions
 
-
-bl_info = {
-    "name": "Ignition Loader",
-    "blender":(2, 80, 0),
-    "category": "Import-Export",
-}
-
-class IgnitionFileLoader(bpy.types.Operator, ImportHelper):
+class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     """Takes care of loading in the .ignition file into your blender proejct."""
     bl_idname = "object.ignitionfileloader"
     bl_label = "Load Ignition File"
@@ -17,6 +9,7 @@ class IgnitionFileLoader(bpy.types.Operator, ImportHelper):
 
     filter_glob: bpy.props.StringProperty(default="*.ignition", options={"HIDDEN"})
 
+    filepath = "" # removing undefined var error
     def menu_func(self, context):
         self.layout.operator(IgnitionFileLoader.bl_idname)
 
@@ -179,13 +172,6 @@ class IgnitionFileLoader(bpy.types.Operator, ImportHelper):
         ## MATERIALS
 
         return {"FINISHED"}
-        
+
 def ignitionNode():
     bpy.data.node_groups.new("IgnitionDefault", "WorldNodeTree")
-
-def register():
-    bpy.utils.register_class(IgnitionFileLoader)
-    bpy.types.VIEW3D_MT_object.append(IgnitionFileLoader.menu_func)
-
-def unregister():
-    bpy.utils.unregister_class(IgnitionFileLoader)
