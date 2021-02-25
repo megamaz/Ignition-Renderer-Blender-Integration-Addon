@@ -3,15 +3,13 @@ from . import exceptions
 
 class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     """Takes care of loading in the .ignition file into your blender proejct."""
-    bl_idname = "object.ignitionfileloader"
+    bl_idname = "ignition.loader"
     bl_label = "Load Ignition File"
     bl_options = {'REGISTER'}
 
     filter_glob: bpy.props.StringProperty(default="*.ignition", options={"HIDDEN"})
 
     filepath = "" # removing undefined var error
-    def menu_func(self, context):
-        self.layout.operator(IgnitionFileLoader.bl_idname)
 
     def execute(self, context):
         bpy.context.scene.render.engine = "CYCLES"

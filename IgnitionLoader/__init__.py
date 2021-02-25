@@ -1,5 +1,6 @@
 import bpy, os, math
 from .handler import loader
+from .handler import panel
 
 bl_info = {
     "name": "Ignition Loader",
@@ -7,9 +8,16 @@ bl_info = {
     "category": "Import-Export",
 }
 
+classes = [
+    loader.IgnitionFileLoader,
+    panel.IgnitionPanel
+]
+
 def register():
-    bpy.utils.register_class(loader.IgnitionFileLoader)
-    bpy.types.VIEW3D_MT_object.append(loader.IgnitionFileLoader.menu_func)
+    for cls in classes:
+        bpy.utils.register_class(cls)
+    bpy.types.VIEW3D_MT_object.append(panel.IgnitionPanel.draw)
 
 def unregister():
-    bpy.utils.unregister_class(loader.IgnitionFileLoader)
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
