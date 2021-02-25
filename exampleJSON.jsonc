@@ -1,0 +1,70 @@
+// This is an example JSON file of how the temp .ignition -> json would look like
+// this is the glassoid.ignition file
+{
+    "materials": [
+        {
+            "name": "checker",
+            "albedoTexture": "teapot/checker.png",
+            "roughness": 0.25
+        },
+        {
+            "name": "white",
+            "color": [
+                1,
+                1,
+                1
+            ],
+            "roughness": 0.2,
+            "clearcoat": 1
+        },
+        {
+            "name": "glass",
+            "color": [
+                0,
+                1,
+                1
+            ],
+            "roughness": 0.02,
+            "transmission": 1,
+            "ior": 1.45,
+            "extinction": [
+                0,
+                1,
+                1
+            ]
+        }
+    ],
+    "Renderer": {
+        "resolution": [
+            1280,
+            720
+        ],
+        "maxDepth": 6,
+        "tileWidth": 128,
+        "tileHeight": 128,
+        "envMap": "HDR/kloppenheim.hdr",
+        "hdrMultiplier": 2
+    },
+    "Camera": {
+        "position": [
+            4,
+            1.5,
+            0
+        ],
+        "lookAt": [
+            0,
+            1,
+            0
+        ],
+        "fov": 60
+    },
+    "mesh": {
+        "file": "glassoid/smoothBackground.obj",
+        "material": "white",
+        "position": [
+            0,
+            1,
+            0
+        ]
+    }
+}
