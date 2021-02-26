@@ -8,15 +8,17 @@ bl_info = {
     "category": "Import-Export",
 }
 
+# commented lines below are due to the fact that they were for TESTING purposes. If you want to mess around with them go ahead lol
 classes = [
     loader.IgnitionFileLoader,
-    panel.IgnitionPanel
+    # panel.IgnitionNodePanelTest,
+    panel.FileHandlerPanel,
 ]
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.VIEW3D_MT_object.append(panel.IgnitionPanel.draw)
+    bpy.types.VIEW3D_MT_object.append(panel.FileHandlerPanel.draw)
 
 def unregister():
     for cls in classes:

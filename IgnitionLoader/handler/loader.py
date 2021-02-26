@@ -170,5 +170,71 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
         return {"FINISHED"}
 
-def ignitionNode():
-    bpy.data.node_groups.new("IgnitionDefault", "WorldNodeTree")
+
+# this is garbage please do not use this please please please fix this oh god please no 
+# this is the worst code i've ever written I couldn't think of a way to automate this 
+# please do not use this in your code please I swear fix it
+def ignitionNode(group:bpy.types.NodeTree=None):
+    if group is None:
+        group = bpy.data.node_groups.new("IgnitionDefault", "ShaderNodeTree")
+    else:
+        group.nodes.clear()
+        group.inputs.clear()
+        group.outputs.clear()
+    nodeIn = group.nodes.new("NodeGroupInput")
+    nodeIn.location = (-500, 0)
+    nodeOut = group.nodes.new('NodeGroupOutput')
+    nodeOut.location = (350, 0)
+    
+    group.inputs.new("NodeSocketColor", "Albedo")
+    group.inputs.new("NodeSocketFloatFactor", "Metallic")
+    group.inputs.new("NodeSocketFloatFactor", "Roughness")
+    group.inputs.new("NodeSocketFloatFactor", "Specular")
+    group.inputs.new("NodeSocketFloatFactor", "Specular Tint")
+    group.inputs.new("NodeSocketFloatFactor", "Subsurface")
+    group.inputs.new("NodeSocketFloatFactor", "Anisotropic")
+    group.inputs.new("NodeSocketFloatFactor", "Sheen")
+    group.inputs.new("NodeSocketFloatFactor", "SheenTint")
+    group.inputs.new("NodeSocketFloatFactor", "Clearcoat")
+    group.inputs.new("NodeSocketFloatFactor", "clearcoatRoughness")
+    group.inputs.new("NodeSocketFloatFactor", "Transmission")
+    group.inputs.new("NodeSocketFloatFactor", "IOR")
+    group.inputs.new("NodeSocketColor", "Extinction")
+    
+    group.outputs.new("NodeSocketShader", "BSDF")
+    
+    for x in range(12):
+        if x == 0:
+            continue
+        group.inputs[x].min_value = 0
+        group.inputs[x].max_value = 1
+
+    group.inputs[2].default_value = 0.5
+    group.inputs[3].default_value = 0.5
+    group.inputs[12].default_value = 1.45
+
+
+    bsdf = group.nodes.new("ShaderNodeBsdfPrincipled")
+    mixRgb = group.nodes.new("ShaderNodeMixRGB")
+    mixRgb.location = (-260, -360)
+
+    group.links.new(nodeOut.inputs[0], bsdf.outputs[0])
+
+    group.links.new(bsdf.inputs[0], mixRgb.outputs[0])
+    group.links.new(nodeIn.outputs["Albedo"], mixRgb.inputs[1])
+    group.links.new(nodeIn.outputs["Extinction"], mixRgb.inputs[2])
+    group.links.new(nodeIn.outputs["Transmission"], mixRgb.inputs[0])
+    
+    group.links.new(nodeIn.outputs["Metallic"], bsdf.inputs["Metallic"])
+    group.links.new(nodeIn.outputs["Roughness"], bsdf.inputs["Roughness"])
+    group.links.new(nodeIn.outputs["Specular"], bsdf.inputs["Specular"])
+    group.links.new(nodeIn.outputs["Specular Tint"], bsdf.inputs["Specular Tint"])
+    group.links.new(nodeIn.outputs["Subsurface"], bsdf.inputs["Subsurface"])
+    group.links.new(nodeIn.outputs["Anisotropic"], bsdf.inputs["Anisotropic"])
+    group.links.new(nodeIn.outputs["Sheen"], bsdf.inputs["Sheen"])
+    group.links.new(nodeIn.outputs["SheenTint"], bsdf.inputs["Sheen Tint"])
+    group.links.new(nodeIn.outputs["Clearcoat"], bsdf.inputs["Clearcoat"])
+    group.links.new(nodeIn.outputs["clearcoatRoughness"], bsdf.inputs["Clearcoat Roughness"])
+    group.links.new(nodeIn.outputs["Transmission"], bsdf.inputs["Transmission"])
+    group.links.new(nodeIn.outputs["IOR"], bsdf.inputs["IOR"])
+
