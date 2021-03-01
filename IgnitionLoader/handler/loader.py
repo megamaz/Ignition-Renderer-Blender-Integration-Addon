@@ -1,4 +1,4 @@
-import bpy, bpy_extras, math, json, os
+import bpy, bpy_extras, json, os, math, colorsys
 from . import exceptions
 
 class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
@@ -13,9 +13,9 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         # clear all objects
-        for obj in bpy.data.objects:
-            obj.select_set(True)
-            bpy.ops.object.delete()
+        for obj in bpy.context.scene.objects:
+            mesh = bpy.data.objects[obj.name]
+            bpy.data.objects.remove(mesh)
 
         bpy.context.scene.render.engine = "CYCLES"
         filename, extension = os.path.splitext(self.filepath)
@@ -32,13 +32,21 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
             newItemIndexMESH = 0
             def checkBegin(stringToCheck, check):
                 return stringToCheck.startswith("\t"*indents + check)
+            lineItem = -1
             for line in ignition.read().splitlines():
+                lineItem += 1
+
+                print(f"line {lineItem}: {line}\ncurrentSettings:{currentSettings}\nnewItemIndexLIGHTS:{newItemIndexLIGHTS}\nnewItemIndexMESH:{newItemIndexMESH}\nindents:{indents}")
                 # Json conversion
                 
+                # lazy space character remover lol
+                if ''.join(line.split()) == "":
+                    continue
+
                 if checkBegin(line, "#"):
                     continue
 
-                if line == "}":
+                if line.startswith("}"):
                     indents -= 1
                     if currentSettings == "mesh":
                         newItemIndexMESH += 1
@@ -48,10 +56,9 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
                     currentSettings = ""
                     continue
 
-                if line == "{":
+                if line.startswith("{"):
                     indents += 1
                     continue
-                
 
                 if indents == 0:
                     currentSettings = line
@@ -61,7 +68,7 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
                     
                     for vals in line.split()[1:]:
                         itemVal = [f for f in vals if f not in "0 1 2 3 4 5 6 7 8 9 . -".split()]
-                        if not any([currentSettings.startswith("material"), (currentSettings == "mesh"), (currentSettings == "light")]):
+                        if not any([currentSettings.startswith("material"), (currentSettings.startswith("mesh")), (currentSettings.startswith("light"))]):
                             if currentSettings not in ignitJson.keys():
                                 ignitJson[currentSettings] = {}
                             if len(line.split()[1:]) == 1: # only one value
@@ -81,7 +88,7 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
                         else:
                             inMatList = False
                             index = 0
-                            listType = "materials" if currentSettings.startswith("material") else "lights" if currentSettings == "light" else "meshes"
+                            listType = "materials" if currentSettings.startswith("material") else "lights" if currentSettings.startswith("light") else "meshes"
                             for checkIfInMatList in range(len(ignitJson[listType])):
                                 if listType == "materials":
                                     if ignitJson["materials"][checkIfInMatList]["name"] == currentSettings.split()[1]:
@@ -118,12 +125,12 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
                                     break
 
         # debugging
-        json.dump(ignitJson, open(r"C:\Users\rapha\Desktop\ignition_beta_win32\ex.json", 'w'))
+        # json.dump(ignitJson, open(r"C:\Users\rapha\Desktop\ignition_beta_win32\ex.json", 'w'))
         
                 
         # json -> blender
-        bpy.context.scene.render.engine = "CYCLES"
 
+        bpy.context.scene.render.engine = "CYCLES"
         scene = bpy.context.scene
         ## RENDERER SETTINGS
         scene.render.resolution_x = ignitJson["Renderer"]["resolution"][0]
@@ -144,8 +151,13 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
             envText = scene.world.node_tree.nodes["Environment Texture"]
             envText.image = bpy.data.images.load(path+"\\"+ignitJson["Renderer"]["envMap"])
             scene.world.node_tree.links.new(envText.outputs[0], scene.world.node_tree.nodes["Background"].inputs[0])
+        else:
+            if "Environment Texture" in scene.world.node_tree.nodes.keys():
+                scene.world.node_tree.nodes.remove(scene.world.node_tree.nodes["Environment Texture"])
+            scene.world.node_tree.nodes["Background"].inputs[0].default_value = [0, 0, 0, 1]
 
-        scene.world.node_tree.nodes["Background"].inputs[1].default_value = ignitJson["Renderer"]["hdrMultiplier"]
+        if ignitJson["Renderer"].get("hdrMultiplier") is not None:
+            scene.world.node_tree.nodes["Background"].inputs[1].default_value = ignitJson["Renderer"]["hdrMultiplier"]
 
         ## CAMERA SETTINGS
         if "Camera" not in scene.objects.keys():
@@ -155,8 +167,9 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
         camera = scene.objects["Camera"]
         scene.camera = camera
 
+
         # blender why you gotta switch Y and Z like that
-        camera.location = (ignitJson["Camera"]["position"][0], ignitJson["Camera"]["position"][2], ignitJson["Camera"]["position"][1])
+        camera.location = (ignitJson["Camera"]["position"][0], -ignitJson["Camera"]["position"][2], ignitJson["Camera"]["position"][1])
 
         if [e for e in scene.objects.keys() if e.startswith("Empty")] == []:
             empty = bpy.data.objects.new("Empty", None)
@@ -164,13 +177,13 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
         # im so fucking stupid and i hate this line of code so fucking much
         empty = scene.objects[[e for e in scene.objects.keys() if e.startswith("Empty")][0]]
-        empty.location = (ignitJson["Camera"]["lookAt"][0], ignitJson["Camera"]["lookAt"][2], ignitJson["Camera"]["lookAt"][1])
+        empty.location = (ignitJson["Camera"]["lookAt"][0], -ignitJson["Camera"]["lookAt"][2], ignitJson["Camera"]["lookAt"][1])
 
         if "Track To" not in camera.constraints.keys():
             camera.constraints.new("TRACK_TO")
 
         camera.constraints["Track To"].target = empty
-        bpy.data.cameras["Camera"].angle  = math.radians(ignitJson["Camera"]["fov"])
+        cameraDat.angle  = math.radians(ignitJson["Camera"]["fov"])
 
         ## MATERIALS
 
@@ -200,34 +213,101 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
                 if val == "name":
                     continue
                 if val == "color":
-                    value = mat[val] + [1]
-                    grp.inputs["albedo"].default_value = value
-                    continue
+                    grp.inputs["albedo"].default_value = mat[val] + [1]
                 elif val == "albedoTexture":
                     imageTex = material.node_tree.nodes.new("ShaderNodeTexImage")
                     imageTex.location = (-800, 0)
                     imageTex.image = bpy.data.images.load(path+"\\"+mat[val])
                     material.node_tree.links.new(imageTex.outputs[0], grp.inputs[0])
                     continue
-                
+                if val not in grp.inputs.keys():
+                    continue
                 if val in ["extinction"]:
                     grp.inputs[val].default_value = mat[val] + [1]
                 else:
                     grp.inputs[val].default_value = mat[val]
                 
-        ## MESH
+        ## MESHES
         for mesh in ignitJson["meshes"]:
             bpy.ops.import_scene.obj(filepath=path + '\\' + mesh["file"])
-            if "position" in mesh.keys():
-                bpy.context.selected_objects[0].location = (mesh["position"][0], mesh["position"][2], mesh["position"][1])
-            # Assign it to object
-            if bpy.context.selected_objects[0].data.materials:
-                # assign to 1st material slot
-                bpy.context.selected_objects[0].data.materials[0] = bpy.data.materials[mesh["material"]]
-            else:
-                # no slots
-                bpy.context.selected_objects[0].data.materials.append(bpy.data.materials[mesh["material"]])
             
+            for selected in bpy.context.selected_objects:
+                if "position" in mesh.keys():
+                    selected.location = (mesh["position"][0], -mesh["position"][2], mesh["position"][1])
+                
+                if "scale" in mesh.keys():
+                    selected.scale = mesh["scale"]
+                if selected.data.materials:
+                    # assign to 1st material slot
+                    selected.data.materials[0] = bpy.data.materials[mesh["material"]]
+                else:
+                    # no slots
+                    selected.data.materials.append(bpy.data.materials[mesh["material"]])
+            
+        # for obj in bpy.data.objects:
+        #     obj.scale = (0.01, 0.01, 0.01)
+
+        ## LIGHTS
+
+        for light in ignitJson["lights"]:
+            if light["type"] == "Sphere":
+                bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=5)
+                bpy.context.selected_objects[0].location = (light["position"][0], -light["position"][2], light["position"][1])
+                bpy.context.selected_objects[0].scale = [light["radius"]]*3
+                lightMat = bpy.data.materials.new("lightMat")
+                lightMat.use_nodes = True
+                lightMat.node_tree.nodes.clear()
+                matOut = lightMat.node_tree.nodes.new("ShaderNodeOutputMaterial")
+                emission = lightMat.node_tree.nodes.new("ShaderNodeEmission")
+                emission.location = (-200, 0)
+                col = (
+                    light["emission"][0]/max(light["emission"]),
+                    light["emission"][1]/max(light["emission"]),
+                    light["emission"][2]/max(light["emission"])
+                )
+                colStrength = max(light["emission"])
+                lightMat.node_tree.links.new(emission.outputs[0], matOut.inputs[0])
+                # col = colorsys.rgb_to_hsv(col[0], col[1], col[2])
+                col = bpy_extras.node_shader_utils.rgb_to_rgba(col)
+                emission.inputs[0].default_value = col
+                emission.inputs[1].default_value = colStrength
+                bpy.context.selected_objects[0].data.materials.append(lightMat)
+            elif light["type"] == "Quad":
+                lightv1 = light["v1"]
+                lightv2 = light["v2"]
+                bpy.ops.mesh.primitive_plane_add(size=1)
+
+                selectedPlane = bpy.context.selected_objects[0]
+                selectedPlane.scale[0] = abs(lightv1[0] - lightv2[0])
+                selectedPlane.scale[1] = abs(lightv1[2] - lightv2[2])
+
+                selectedPlane.location = (
+                    (lightv1[0]+lightv2[0])/2,
+                    -(lightv1[2]+lightv2[2])/2,
+                    light["position"][1]
+                )
+                
+                lightMat = bpy.data.materials.new("lightMat")
+                lightMat.use_nodes = True
+                lightMat.node_tree.nodes.clear()
+                matOut = lightMat.node_tree.nodes.new("ShaderNodeOutputMaterial")
+                emission = lightMat.node_tree.nodes.new("ShaderNodeEmission")
+                lightMat.node_tree.links.new(emission.outputs[0], matOut.inputs[0])
+
+                col = (
+                    light["emission"][0]/max(light["emission"]),
+                    light["emission"][1]/max(light["emission"]),
+                    light["emission"][2]/max(light["emission"])
+                )
+                col = bpy_extras.node_shader_utils.rgb_to_rgba(col)
+                colStrength = max(light["emission"])
+
+                emission.inputs[0].default_value = col
+                emission.inputs[1].default_value = colStrength
+
+                selectedPlane.data.materials.append(lightMat)
+
+
 
         return {"FINISHED"}
 
