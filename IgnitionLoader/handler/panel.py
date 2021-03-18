@@ -3,13 +3,12 @@ from bpy.types import (
     Operator
 )
 import bpy
-from . import loader
+from . import loader, writer
 
-# testing purposes! This won't be usable in the final code
-class IgnitionNodePanelTest(Operator):
-    """Test default ignition node"""
-    bl_idname = "node.ignition"
-    bl_label = "Create Default Ignition Node (Test)"
+class IgnitionDefaultNode(Operator):
+    """Create the default inition node"""
+    bl_idname = "ignition.node"
+    bl_label = "Create Default Ignition Node"
     bl_options = {'REGISTER'}
 
     def execute(self, context:bpy.context):
@@ -22,8 +21,24 @@ class FileHandlerPanel(Panel):
     bl_region_type = "UI"
     bl_category = "Ignition"
     bl_label = "File Handler"
+    bl_idname = "ignition.file_handle_panel"
+
 
     def draw(self, context):
         layout = self.layout
         layout.operator(loader.IgnitionFileLoader.bl_idname)
-    
+        layout.operator(writer.IgnitionFileWriter.bl_idname)
+
+class NodeHandler(Panel):
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Ignition"
+    bl_label = "Node Handler"
+    bl_idname = "ignition.node_handle_panel"
+
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator(IgnitionDefaultNode.bl_idname)
+        

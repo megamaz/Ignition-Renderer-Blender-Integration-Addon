@@ -1,10 +1,10 @@
-import bpy, bpy_extras, json, os, math, colorsys
-from . import exceptions
+import bpy, bpy_extras, os, math, json
+from . import exceptions, ignitionToJson
 
 class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
-    """Takes care of loading in the .ignition file into your blender proejct."""
+    """Takes care of loading in the .ignition file into your blender project."""
     bl_idname = "ignition.loader"
-    bl_label = "Load Ignition File"
+    bl_label = "Open Ignition File"
     bl_options = {'REGISTER', "UNDO"} # removing all objects is a destructive action! Ability to undo is nice
 
     filter_glob: bpy.props.StringProperty(default="*.ignition", options={"HIDDEN"})
@@ -12,6 +12,7 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     filepath = "" # removing undefined var error
 
     def execute(self, context):
+        bpy.context.scene["IGNITION_FILEPATH"] = self.filepath
         # clear all objects
         for obj in bpy.context.scene.objects:
             mesh = bpy.data.objects[obj.name]
@@ -23,106 +24,8 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
         if extension != ".ignition":
             raise exceptions.NotAnIgnitionFile("This specified file was not a .ignition file")
         
-        with open(filename+extension) as ignition:
-            
-            currentSettings = ""
-            indents = 0
-            ignitJson = {"materials":[], "meshes":[], "lights":[]}
-            newItemIndexLIGHTS = 0
-            newItemIndexMESH = 0
-            def checkBegin(stringToCheck, check):
-                return stringToCheck.startswith("\t"*indents + check)
-            lineItem = -1
-            for line in ignition.read().splitlines():
-                lineItem += 1
-
-                print(f"line {lineItem}: {line}\ncurrentSettings:{currentSettings}\nnewItemIndexLIGHTS:{newItemIndexLIGHTS}\nnewItemIndexMESH:{newItemIndexMESH}\nindents:{indents}")
-                # Json conversion
-                
-                # lazy space character remover lol
-                if ''.join(line.split()) == "":
-                    continue
-
-                if checkBegin(line, "#"):
-                    continue
-
-                if line.startswith("}"):
-                    indents -= 1
-                    if currentSettings == "mesh":
-                        newItemIndexMESH += 1
-                    elif currentSettings == "light":
-                        newItemIndexLIGHTS += 1
-
-                    currentSettings = ""
-                    continue
-
-                if line.startswith("{"):
-                    indents += 1
-                    continue
-
-                if indents == 0:
-                    currentSettings = line
-                    continue
-
-                if currentSettings != "":
-                    
-                    for vals in line.split()[1:]:
-                        itemVal = [f for f in vals if f not in "0 1 2 3 4 5 6 7 8 9 . -".split()]
-                        if not any([currentSettings.startswith("material"), (currentSettings.startswith("mesh")), (currentSettings.startswith("light"))]):
-                            if currentSettings not in ignitJson.keys():
-                                ignitJson[currentSettings] = {}
-                            if len(line.split()[1:]) == 1: # only one value
-                                if itemVal != []: # no letters
-                                    ignitJson[currentSettings][line.split()[0]] = line.split()[1]
-                                    break
-                                else:
-                                    ignitJson[currentSettings][line.split()[0]] = float(line.split()[1])
-                                    break
-                            else:
-                                if itemVal != []:
-                                    ignitJson[currentSettings][line.split()[0]] = line.split()[1:]
-                                    break
-                                else:
-                                    ignitJson[currentSettings][line.split()[0]] = [float(x) for x in line.split()[1:]]
-                                    break
-                        else:
-                            inMatList = False
-                            index = 0
-                            listType = "materials" if currentSettings.startswith("material") else "lights" if currentSettings.startswith("light") else "meshes"
-                            for checkIfInMatList in range(len(ignitJson[listType])):
-                                if listType == "materials":
-                                    if ignitJson["materials"][checkIfInMatList]["name"] == currentSettings.split()[1]:
-                                        inMatList = True
-                                        index = checkIfInMatList
-                                        break
-                            
-                            if listType == "meshes":
-                                if len(ignitJson["meshes"]) == newItemIndexMESH:
-                                    ignitJson["meshes"].append({})
-                            elif listType == "lights":
-                                if len(ignitJson["lights"]) == newItemIndexLIGHTS:
-                                    ignitJson["lights"].append({})
-                            
-                            if not inMatList:
-                                if listType == "materials":
-                                    ignitJson["materials"].append({"name":currentSettings.split()[1]})
-
-                            index = len(ignitJson[listType])-1
-                            if len(line.split()[1:]) == 1: # only one value
-                                if itemVal != []: # no letters
-                                    print(index, ignitJson[listType])
-                                    ignitJson[listType][index][line.split()[0]] = line.split()[1]
-                                    break
-                                else:
-                                    ignitJson[listType][index][line.split()[0]] = float(line.split()[1])
-                                    break
-                            else:
-                                if itemVal != []:
-                                    ignitJson[listType][index][line.split()[0]] = line.split()[1:]
-                                    break
-                                else:
-                                    ignitJson[listType][index][line.split()[0]] = [float(x) for x in line.split()[1:]]
-                                    break
+        ignitJson = ignitionToJson.IgnitionToJson(filename+extension)
+        bpy.context.scene["IGNITION_JSONDATA"] = json.dumps(ignitJson)
 
         # debugging
         # json.dump(ignitJson, open(r"C:\Users\rapha\Desktop\ignition_beta_win32\ex.json", 'w'))
@@ -292,6 +195,7 @@ class IgnitionFileLoader(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
                 lightMat.node_tree.nodes.clear()
                 matOut = lightMat.node_tree.nodes.new("ShaderNodeOutputMaterial")
                 emission = lightMat.node_tree.nodes.new("ShaderNodeEmission")
+                emission.location = (-200, 0)
                 lightMat.node_tree.links.new(emission.outputs[0], matOut.inputs[0])
 
                 col = (
@@ -328,7 +232,7 @@ def ignitionNode(group:bpy.types.NodeTree=None):
     
     group.inputs.new("NodeSocketColor",         "albedo")
     group.inputs.new("NodeSocketColor",         "albedoTexture")
-    group.inputs.new("NodeSocketColor",         "emission")#----------------------TODO
+    group.inputs.new("NodeSocketColor",         "emission")
     group.inputs.new("NodeSocketFloatFactor",   "metallic")
     group.inputs.new("NodeSocketFloatFactor",   "roughness")
     group.inputs.new("NodeSocketFloatFactor",   "specular")
@@ -342,8 +246,8 @@ def ignitionNode(group:bpy.types.NodeTree=None):
     group.inputs.new("NodeSocketFloatFactor",   "transmission")
     group.inputs.new("NodeSocketFloat",         "ior")
     group.inputs.new("NodeSocketColor",         "extinction")                       
-    group.inputs.new("NodeSocketColor",         "metalicRoughnessTexture")#------TODO
-    group.inputs.new("NodeSocketColor",         "normalTexture")#-----------------TODO
+    group.inputs.new("NodeSocketColor",         "metalicRoughnessTexture")#-------TODO
+    group.inputs.new("NodeSocketColor",         "normalTexture")
     
     group.outputs.new("NodeSocketShader", "BSDF")
     
@@ -373,6 +277,7 @@ def ignitionNode(group:bpy.types.NodeTree=None):
     group.links.new(nodeIn.outputs["extinction"], mixRgb.inputs[2])
     group.links.new(nodeIn.outputs["transmission"], mixRgb.inputs[0])
     
+    group.links.new(nodeIn.outputs["emission"], bsdf.inputs["Emission"])
     group.links.new(nodeIn.outputs["metallic"], bsdf.inputs["Metallic"])
     group.links.new(nodeIn.outputs["roughness"], bsdf.inputs["Roughness"])
     group.links.new(nodeIn.outputs["specular"], bsdf.inputs["Specular"])
@@ -385,4 +290,6 @@ def ignitionNode(group:bpy.types.NodeTree=None):
     group.links.new(nodeIn.outputs["clearcoatRoughness"], bsdf.inputs["Clearcoat Roughness"])
     group.links.new(nodeIn.outputs["transmission"], bsdf.inputs["Transmission"])
     group.links.new(nodeIn.outputs["ior"], bsdf.inputs["IOR"])
+    group.links.new(nodeIn.outputs["normalTexture"], bsdf.inputs["Normal"])
+
 

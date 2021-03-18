@@ -1,5 +1,5 @@
 import bpy, os, math
-from .handler import loader
+from .handler import loader, writer
 from .handler import panel
 
 bl_info = {
@@ -11,8 +11,10 @@ bl_info = {
 # commented lines below are due to the fact that they were for TESTING purposes. If you want to mess around with them go ahead lol
 classes = [
     loader.IgnitionFileLoader,
-    # panel.IgnitionNodePanelTest,
+    writer.IgnitionFileWriter,
+    panel.IgnitionDefaultNode,
     panel.FileHandlerPanel,
+    panel.NodeHandler,
 ]
 
 def register():
