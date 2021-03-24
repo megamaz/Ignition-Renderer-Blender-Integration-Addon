@@ -39,8 +39,9 @@ class IgnitionFileWriter(bpy.types.Operator, ExportHelper):
                 blendJson["Renderer"]["hdriMultiplier"] = node.inputs[1].default_value
 
         # CAMERA SETTINGS
+        currentCamera = bpy.data.cameras[bpy.data.scenes[0].camera.name]
         blendJson["Camera"] = {}
-        blendJson["Camera"]["fov"] = bpy.data.cameras[bpy.data.scenes[0].camera.name].angle
+        blendJson["Camera"]["fov"] = currentCamera.angle
         blendJson["Camera"]["pos"] = [bpy.data.scenes[0].camera.location[0],
                                      -bpy.data.scenes[0].camera.location[2],
                                       bpy.data.scenes[0].camera.location[1]]
@@ -56,29 +57,35 @@ class IgnitionFileWriter(bpy.types.Operator, ExportHelper):
         # awfully complicated.
 
         # step 1
-        objName = ' '.join([chr(random.randint(0,255)) for x in range(10)])
+        objName = ''.join([chr(random.randint(0,255)) for x in range(10)])
         print(objName)
         bpy.ops.object.empty_add(type='PLAIN_AXES') # empty is now selected
         bpy.context.object.name = objName # randomly generated name for later
         # step 2
-        bpy.context.object.select_set(False)
+        bpy.ops.object.select_all(action='DESELECT')
+
         bpy.data.objects[objName].select_set(True)
-        bpy.data.scenes[0].camera.select_set(True)
+        bpy.ops.object.select_camera(extend=True)
 
         bpy.ops.object.parent_no_inverse_set() # empty object now is parented to camera
-        for obj in bpy.context.selected_objects:
-            if obj.name != objName: # that's why we needed a random name
-                obj.select_set(False)
-        
-        # Step 3
-        bpy.context.object.location[2] -= 1
 
+        bpy.ops.object.select_all(action='DESELECT')
+
+        # Step 3
+        bpy.data.objects[objName].location[2] -= 1 
+        
         # Step 4
+        bpy.data.objects[objName].select_set(True)
         bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
 
+        # catJAM IT WORKS
+        blendJson["Camera"]["lookAt"] = bpy.data.objects[objName].location
 
+        bpy.ops.object.delete()
 
-        
+        if currentCamera.dof.use_dof:
+            blendJson["Camera"]["focalDistance"] = currentCamera.dof.focus_distance
+            blendJson["Camera"]["aperture"] = currentCamera.dof.aperture_fstop
 
         # JSON -> IGNITION
         ignitionFile = ""
@@ -97,6 +104,5 @@ class IgnitionFileWriter(bpy.types.Operator, ExportHelper):
             ignitionFile += "}"
 
         open(self.filepath, 'w').write(ignitionFile)
-
 
         return {"FINISHED"}
