@@ -7,7 +7,7 @@ The add-on is currently in closed beta. The only feature at the moment is simple
 Q: **When is it coming out?**\
 A: I don't know. I'm working on it when I can and when I want. I also have school that I need to take care of.\
 \
-Q: **Will Blender node trees work with this add-on?**
+Q: **Will Blender shader node trees work with this add-on?**\
 A: No. With the addon, a custom node group called `Ignition Default` will be provided. If that note is not directly connected to the material output, the conversion process will not work and your models will be given no materials.\
 \
 Q: **What if I don't know Blender?**\
