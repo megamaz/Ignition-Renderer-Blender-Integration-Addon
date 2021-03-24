@@ -58,7 +58,6 @@ class IgnitionFileWriter(bpy.types.Operator, ExportHelper):
 
         # step 1
         objName = ''.join([chr(random.randint(0,255)) for x in range(10)])
-        print(objName)
         bpy.ops.object.empty_add(type='PLAIN_AXES') # empty is now selected
         bpy.context.object.name = objName # randomly generated name for later
         # step 2
@@ -86,6 +85,22 @@ class IgnitionFileWriter(bpy.types.Operator, ExportHelper):
         if currentCamera.dof.use_dof:
             blendJson["Camera"]["focalDistance"] = currentCamera.dof.focus_distance
             blendJson["Camera"]["aperture"] = currentCamera.dof.aperture_fstop
+
+
+        # MATERIALS
+        for mat in bpy.data.materials:
+            mat:bpy.types.Material
+            if not mat.use_nodes:
+                continue
+            
+            for link in mat.node_tree.links:
+                link:bpy.types.NodeLink 
+                if link.to_node.type == "OUTPUT_MATERIAL":
+                    if link.from_node.type == "GROUP":
+                        print(link.from_node.label)
+            
+            
+            
 
         # JSON -> IGNITION
         ignitionFile = ""
