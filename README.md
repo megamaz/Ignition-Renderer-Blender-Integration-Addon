@@ -1,6 +1,14 @@
 # LavaFrame Blender Integration Addon
 As of when I'm writing this, Ignition has no built-in method for editing and creating files. This means that you'd have to learn the [file structure](https://ignitionrenderer.com/docs/#scene-files) to make a scene. This is tedious and can take a while! So, there's gotta be a better method to do it. Well, this is exactly what this is. This is the Blender Integration for Ignition.
 
+# DEV BRANCH
+This is the Dev branch, meaning that everything you see here may not be fully working. Integration is subject to crashing Blender, not working as expected, or missing features. You have been warned.
+### Patch Notes
+7/30/21 12:53pm PST
+- Started Fixing Quad Lights being incorrectly loaded in (incomplete fix)
+- Added two new nodes; `LavaFrameLightNodeSphere` and `LavaFrameLightNodeQuad`
+- Advanced work on exporter (meshes, lights, and materials are still not exported and is subject to crashing)
+- Renamed most buttons from Ignition to LavaFrame
 # Info
 The add-on is currently in closed beta. The only feature at the moment is simple file loading. If you'd like to contribute and help me speed things up, consider switching to the dev branch and doing some PR. Keep in mind that I am working on this when I can and not at all times.
 # FAQ
